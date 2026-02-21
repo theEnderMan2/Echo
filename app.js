@@ -562,5 +562,193 @@ function fmtDate(iso) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+// ══════════════════════════════════════════════
+//   SWIPE GESTURE — slide between tabs
+// ══════════════════════════════════════════════
+
+(function setupSwipe() {
+  const TABS   = ['record', 'sessions', 'summary'];
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let dragging     = false;
+
+  // Track which tab index is active
+  function activeIndex() {
+    return TABS.findIndex(t =>
+      document.getElementById('tab-' + t).classList.contains('active')
+    );
+  }
+
+  document.addEventListener('touchstart', e => {
+    // Only start swipe if touch begins in the main panel area (not tabbar)
+    if (e.target.closest('#tabbar')) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    dragging = false;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (e.target.closest('#tabbar')) return;
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
+    // Confirm it's a horizontal drag (not a scroll)
+    if (!dragging && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+      dragging = true;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    if (!dragging) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+
+    // Must be mostly horizontal and at least 50px
+    if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
+
+    const current = activeIndex();
+    if (dx < 0 && current < TABS.length - 1) {
+      // Swipe left → next tab
+      switchTab(TABS[current + 1]);
+    } else if (dx > 0 && current > 0) {
+      // Swipe right → previous tab
+      switchTab(TABS[current - 1]);
+    }
+    dragging = false;
+  }, { passive: true });
+
+  // Also allow sliding finger along the tab bar itself
+  const tabbar = document.getElementById('tabbar');
+  let barStartX = 0;
+  let barActive  = false;
+
+  tabbar.addEventListener('touchstart', e => {
+    barStartX = e.touches[0].clientX;
+    barActive  = true;
+  }, { passive: true });
+
+  tabbar.addEventListener('touchmove', e => {
+    if (!barActive) return;
+    const dx = e.touches[0].clientX - barStartX;
+    // Live highlight whichever tab the finger is over
+    const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+    const tab = el?.closest('.tab');
+    if (tab && tab.dataset.tab) {
+      // Temporarily highlight without committing
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    }
+  }, { passive: true });
+
+  tabbar.addEventListener('touchend', e => {
+    if (!barActive) return;
+    barActive = false;
+    // Commit to whichever tab is currently highlighted
+    const active = document.querySelector('.tab.active');
+    if (active?.dataset.tab) switchTab(active.dataset.tab);
+  }, { passive: true });
+})();
+
 // ── Start ──
 init();
+
+// ══════════════════════════════════════════════
+//   SWIPE GESTURE — slide thumb across tab bar
+// ══════════════════════════════════════════════
+
+(function() {
+  const TABS = ['record', 'sessions', 'summary'];
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let isDraggingTabBar = false;
+  let currentIndex = 0;
+
+  const tabbar = document.getElementById('tabbar');
+
+  // ── Tab bar drag: hold and slide ──
+  tabbar.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    isDraggingTabBar = true;
+  }, { passive: true });
+
+  tabbar.addEventListener('touchmove', e => {
+    if (!isDraggingTabBar) return;
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
+
+    // Only handle horizontal drags
+    if (Math.abs(dy) > Math.abs(dx)) { isDraggingTabBar = false; return; }
+
+    const threshold = 36; // px to slide before switching
+    if (dx < -threshold) {
+      // Slide left → next tab
+      const next = Math.min(currentIndex + 1, TABS.length - 1);
+      if (next !== currentIndex) {
+        currentIndex = next;
+        switchTab(TABS[currentIndex]);
+        touchStartX = e.touches[0].clientX; // reset so each threshold triggers once
+        haptic();
+      }
+    } else if (dx > threshold) {
+      // Slide right → prev tab
+      const prev = Math.max(currentIndex - 1, 0);
+      if (prev !== currentIndex) {
+        currentIndex = prev;
+        switchTab(TABS[currentIndex]);
+        touchStartX = e.touches[0].clientX;
+        haptic();
+      }
+    }
+  }, { passive: true });
+
+  tabbar.addEventListener('touchend', () => { isDraggingTabBar = false; });
+
+  // ── Full-screen swipe (swipe anywhere on content area) ──
+  const app = document.getElementById('app');
+  let swipeStartX = 0;
+  let swipeStartY = 0;
+  let swipingContent = false;
+
+  app.addEventListener('touchstart', e => {
+    // Ignore if touch starts on tabbar (handled above)
+    if (tabbar.contains(e.target)) return;
+    swipeStartX = e.touches[0].clientX;
+    swipeStartY = e.touches[0].clientY;
+    swipingContent = true;
+  }, { passive: true });
+
+  app.addEventListener('touchend', e => {
+    if (!swipingContent) return;
+    swipingContent = false;
+
+    const dx = e.changedTouches[0].clientX - swipeStartX;
+    const dy = e.changedTouches[0].clientY - swipeStartY;
+
+    // Must be more horizontal than vertical, and at least 60px
+    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
+
+    if (dx < 0) {
+      // Swipe left → next tab
+      currentIndex = Math.min(currentIndex + 1, TABS.length - 1);
+    } else {
+      // Swipe right → prev tab
+      currentIndex = Math.max(currentIndex - 1, 0);
+    }
+
+    switchTab(TABS[currentIndex]);
+    haptic();
+  }, { passive: true });
+
+  // Keep currentIndex in sync when tabs are tapped directly
+  tabbar.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    const name = tab.dataset.tab;
+    currentIndex = TABS.indexOf(name);
+  });
+
+  // Subtle haptic feedback on supported devices
+  function haptic() {
+    if (navigator.vibrate) navigator.vibrate(8);
+  }
+})();

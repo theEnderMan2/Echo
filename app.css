@@ -641,18 +641,61 @@ body::before {
 }
 
 /* ══════════════════════════════════════════════
-   TAB BAR
+   TAB BAR — Liquid Glass
 ══════════════════════════════════════════════ */
 
 #tabbar {
   height: calc(var(--tab-h) + var(--sab));
-  background: rgba(255,255,255,0.92);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  border-top: 1px solid var(--border);
+  background: rgba(210, 225, 248, 0.42);
+  backdrop-filter: blur(52px) saturate(2.4) brightness(1.10);
+  -webkit-backdrop-filter: blur(52px) saturate(2.4) brightness(1.10);
+  border-top: 1px solid rgba(255,255,255,0.72);
   display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px var(--sab);
+  gap: 6px;
   flex-shrink: 0;
   z-index: 100;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Iridescent shimmer that drifts across the bar */
+#tabbar::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    115deg,
+    rgba(255,255,255,0.00) 0%,
+    rgba(180,210,255,0.18) 25%,
+    rgba(210,180,255,0.14) 50%,
+    rgba(180,255,220,0.12) 75%,
+    rgba(255,255,255,0.00) 100%
+  );
+  pointer-events: none;
+  animation: shimmer 7s ease-in-out infinite alternate;
+}
+
+@keyframes shimmer {
+  0%   { transform: translateX(-40%) skewX(-6deg); opacity: 0.5; }
+  100% { transform: translateX(40%)  skewX(-6deg); opacity: 1.0; }
+}
+
+/* Bottom edge glow */
+#tabbar::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255,255,255,0.65) 30%,
+    rgba(255,255,255,0.85) 50%,
+    rgba(255,255,255,0.65) 70%,
+    transparent 100%
+  );
+  pointer-events: none;
 }
 
 .tab {
@@ -661,28 +704,89 @@ body::before {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   font-family: var(--font);
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text4);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(50,65,110,0.50);
   background: none;
   border: none;
   cursor: pointer;
-  padding-bottom: var(--sab);
   touch-action: manipulation;
-  transition: color 0.15s;
+  border-radius: 18px;
+  padding: 8px 6px;
+  transition: color 0.25s, flex 0.38s cubic-bezier(0.34,1.15,0.64,1);
+  min-height: 52px;
+  position: relative;
+  z-index: 1;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.tab.active { color: var(--accent); }
+/* Active tab — the liquid glass bubble */
+.tab.active {
+  flex: 1.7;
+  color: #1a56db;
+  background: linear-gradient(
+    160deg,
+    rgba(255,255,255,0.86) 0%,
+    rgba(218,232,255,0.62) 50%,
+    rgba(200,220,255,0.52) 100%
+  );
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.92),
+    0 6px 24px rgba(37,99,235,0.20),
+    0 2px 6px rgba(0,0,0,0.10),
+    inset 0 1.5px 0 rgba(255,255,255,1),
+    inset 0 -1px 0 rgba(170,195,255,0.40);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+}
+
+/* Iridescent colour wash over active pill */
+.tab.active::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 18px;
+  background: linear-gradient(
+    135deg,
+    rgba(160,200,255,0.28) 0%,
+    rgba(210,190,255,0.14) 40%,
+    rgba(160,240,200,0.10) 70%,
+    rgba(255,210,170,0.10) 100%
+  );
+  pointer-events: none;
+}
+
+/* Specular glint — bright streak near top like sun on glass */
+.tab.active::after {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 16%;
+  width: 40%;
+  height: 3.5px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(255,255,255,0.95) 35%,
+    rgba(255,255,255,0.80) 65%,
+    transparent
+  );
+  border-radius: 4px;
+  pointer-events: none;
+}
 
 .tab-icon {
   font-size: 22px;
   line-height: 1;
-  transition: transform 0.15s;
+  transition: transform 0.38s cubic-bezier(0.34,1.56,0.64,1);
+  position: relative; z-index: 1;
 }
 
-.tab.active .tab-icon { transform: scale(1.1); }
+.tab.active .tab-icon { transform: scale(1.12); }
+.tab-label { position: relative; z-index: 1; }
+
+/* Inactive = icon only */
+.tab:not(.active) .tab-label { display: none; }
 
 /* ══════════════════════════════════════════════
    SETTINGS MODAL
