@@ -1,58 +1,59 @@
 // ══════════════════════════════════════════════
 //   Echo. — Service Worker
-//   Caches app shell for offline use
+//   Network-first so updates always show
 // ══════════════════════════════════════════════
 
-const CACHE   = 'echo-v1';
-const ASSETS  = [
-  '/',
-  '/index.html',
-  '/app.css',
-  '/app.js',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+const CACHE  = ‘echo-v2’; // bump this whenever you want to force a refresh
+const ASSETS = [
+‘/’,
+‘/index.html’,
+‘/app.css’,
+‘/app.js’,
+‘/manifest.json’,
+‘/icons/icon-192.png’,
+‘/icons/icon-512.png’,
 ];
 
-// Install: cache all app shell assets
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS))
-  );
-  self.skipWaiting();
+// Install: pre-cache app shell
+self.addEventListener(‘install’, e => {
+e.waitUntil(
+caches.open(CACHE).then(c => c.addAll(ASSETS))
+);
+self.skipWaiting(); // activate immediately, don’t wait
 });
 
-// Activate: clear old caches
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
+// Activate: delete ALL old caches so stale files are gone
+self.addEventListener(‘activate’, e => {
+e.waitUntil(
+caches.keys().then(keys =>
+Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+)
+);
+self.clients.claim(); // take control of all open tabs immediately
 });
 
-// Fetch: cache-first for app shell, network-first for model files
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
+// Fetch: NETWORK-FIRST for app files, fallback to cache if offline
+self.addEventListener(‘fetch’, e => {
+const url = new URL(e.request.url);
 
-  // Let Transformers.js model fetches go to network (they self-cache via browser)
-  if (url.hostname.includes('huggingface') || url.pathname.includes('onnx')) {
-    return; // pass through
-  }
+// Skip non-GET and cross-origin model/font requests — let them go direct
+if (e.request.method !== ‘GET’) return;
+if (url.hostname !== location.hostname) return;
 
-  // Cache-first for everything else
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).then(res => {
-        // Cache new successful responses
-        if (res && res.status === 200 && res.type !== 'opaque') {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-        }
-        return res;
-      }).catch(() => caches.match('/index.html'));
-    })
-  );
+e.respondWith(
+fetch(e.request)
+.then(res => {
+// Got a fresh response — update the cache with it
+if (res && res.status === 200) {
+const clone = res.clone();
+caches.open(CACHE).then(c => c.put(e.request, clone));
+}
+return res;
+})
+.catch(() => {
+// Offline — serve from cache
+return caches.match(e.request)
+.then(cached => cached || caches.match(’/index.html’));
+})
+);
 });
