@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Echo.</title>
+
+  <!-- PWA Meta -->
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="Echo"/>
+  <meta name="theme-color" content="#eef0f5"/>
+  <meta name="description" content="Live call transcription with AI summaries"/>
+
+  <!-- PWA Icons -->
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icons/icon-180.png"/>
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png"/>
+  <link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png"/>
+
+  <!-- Splash screens for iPhone 15 -->
+  <link rel="apple-touch-startup-image" href="icons/splash-1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)"/>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="app.css"/>
+</head>
+<body>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="hidden">
+    <div class="modal-box">
+      <div class="modal-logo">
+        <span class="modal-logo-text">Echo</span>
+        <span class="modal-logo-dot">.</span>
+      </div>
+      <div class="modal-desc">Echo works completely offline — no API key needed. AI summaries run locally on your device using Transformers.js.</div>
+      <div class="modal-section-title">Session Name</div>
+      <input class="modal-input" type="text" id="modal-session-input" placeholder="Name this session…"/>
+      <button class="modal-save" id="modal-save-btn">Save</button>
+      <button class="modal-skip" id="modal-close-btn">Close</button>
+    </div>
+  </div>
+
+  <!-- App Shell -->
+  <div id="app">
+
+    <!-- ── RECORD TAB ── -->
+    <div class="tab-panel active" id="tab-record">
+
+      <div class="panel-scroll">
+        <!-- Top bar -->
+        <div class="topbar safe-top">
+          <input type="text" id="session-name" placeholder="Session name…" autocomplete="off"/>
+          <button class="pill" id="settings-btn">⚙</button>
+        </div>
+
+        <!-- Recording card -->
+        <div class="rec-card">
+          <div class="rec-row">
+            <button id="rec-btn">🎙</button>
+            <div class="rec-info">
+              <div id="rec-status">
+                <div class="live-dot"></div>
+                <span id="rec-status-text">Ready to record</span>
+              </div>
+              <div id="rec-sub">Tap the button to start</div>
+            </div>
+            <div id="rec-timer">0:00</div>
+          </div>
+
+          <div class="device-box">
+            <div class="device-label">Microphone</div>
+            <select class="device-select" id="mic-select"><option>Loading…</option></select>
+          </div>
+
+          <div id="viz"></div>
+        </div>
+
+        <!-- Transcript card -->
+        <div class="card transcript-card">
+          <div class="card-head">
+            <div class="card-title">
+              📝 Transcript
+              <span class="badge badge-live" id="live-badge">● LIVE</span>
+            </div>
+            <div class="head-btns">
+              <button class="hbtn" id="copy-btn">Copy</button>
+              <button class="hbtn" id="clear-btn">Clear</button>
+            </div>
+          </div>
+          <div class="card-body" id="transcript-body">
+            <div class="placeholder">
+              <div class="placeholder-icon">🎙</div>
+              <div class="placeholder-text">Tap record to start capturing.<br/>Your transcript appears here in real time.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SESSIONS TAB ── -->
+    <div class="tab-panel" id="tab-sessions">
+      <div class="panel-scroll">
+        <div class="topbar safe-top">
+          <div class="panel-title">Sessions</div>
+          <button class="pill accent" id="new-btn-sessions">＋ New</button>
+        </div>
+        <div id="sessions-list">
+          <div class="empty-list">No sessions yet.<br/>Tap New to begin.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SUMMARY TAB ── -->
+    <div class="tab-panel" id="tab-summary">
+      <div class="panel-scroll">
+        <div class="topbar safe-top">
+          <div class="panel-title">AI Summary</div>
+          <button class="hbtn primary" id="summarize-btn">Summarize</button>
+        </div>
+
+        <!-- Model load status -->
+        <div id="model-status" class="model-bar hidden">
+          <div class="model-bar-inner">
+            <div class="model-spinner"></div>
+            <span id="model-status-text">Loading AI model…</span>
+          </div>
+          <div class="model-progress-track"><div class="model-progress-fill" id="model-progress"></div></div>
+        </div>
+
+        <div class="card summary-card">
+          <div class="card-head">
+            <div class="card-title">
+              ✦ Summary
+              <span class="badge badge-ai">On-device</span>
+            </div>
+          </div>
+          <div class="card-body" id="summary-body">
+            <div class="placeholder" id="sum-placeholder">
+              <div class="placeholder-icon">✦</div>
+              <div class="placeholder-text">After your call, tap <strong>Summarize</strong><br/>for an AI breakdown — runs fully<br/>on your device, no internet needed.</div>
+            </div>
+            <div id="summary-content"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB BAR ── -->
+    <nav id="tabbar" class="safe-bottom">
+      <button class="tab active" data-tab="record">
+        <span class="tab-icon">🎙</span>
+        <span class="tab-label">Record</span>
+      </button>
+      <button class="tab" data-tab="sessions">
+        <span class="tab-icon">📋</span>
+        <span class="tab-label">Sessions</span>
+      </button>
+      <button class="tab" data-tab="summary">
+        <span class="tab-icon">✦</span>
+        <span class="tab-label">Summary</span>
+      </button>
+    </nav>
+
+  </div><!-- /app -->
+
+  <script src="app.js"></script>
+</body>
+</html>
